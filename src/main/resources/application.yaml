@@ -1,0 +1,49 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/matera?createDatabaseIfNotExist=true&serverTimezone=UTC
+    username: matera
+    password: matera
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  kafka:
+    bootstrap-servers: "localhost:19092,localhost:19093"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      properties:
+        schema.registry.url: http://localhost:8081
+        auto.register.schemas: true
+      topic: broadcast-events
+
+    consumer:
+      group-id: broadcast-event-group
+
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+
+      properties:
+        schema.registry.url: http://localhost:8081
+        specific.avro.reader: true
+        auto-offset-reset: earliest
+
+dtw-common:
+  cdc:
+    provider: polling
+    polling:
+      entry-table-name: ITEM_POLLING_ENTRY
+      query:
+        chunk-size: 150
+
+polling:
+  frequency:
+    duration: PT5S
+
+gtw-commons:
+  lock:
+    jdbc:
+      lock-table-name: EOD_API_LOCK_ENTRY

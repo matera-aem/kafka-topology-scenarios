@@ -1,0 +1,19 @@
+{
+  "name": "BroadcastEventAvro",
+  "type": "record",
+  "namespace": "com.matera.eod.admin.broadcast.avro",
+  "fields": [
+    { "name": "id", "type": "string" },
+    { "name": "eventCode", "type": "string" },
+    {
+      "name": "eventParameters",
+      "type": ["null", "string"],
+      "default": null
+    },
+    {
+      "name": "eventDescription",
+      "type": ["null", "string"],
+      "default": null
+    }
+  ]
+}

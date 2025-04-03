@@ -1,0 +1,116 @@
+services:
+
+  # ZOOKEEPER
+  zookeeper-poc:
+    image: confluentinc/cp-zookeeper:7.8.0
+    container_name: zookeeper-poc
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "2181" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # KAFKA1
+  kafka-1-poc:
+    image: confluentinc/cp-kafka:7.8.0
+    container_name: kafka-1-poc
+    depends_on:
+      - zookeeper-poc
+    ports:
+      - "9092:9092"
+      - "19092:19092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-poc:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1-poc:9092,PLAINTEXT_HOST://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+    healthcheck:
+      test: [ "CMD", "kafka-topics", "--list", "--bootstrap-server", "localhost:9092" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # KAFKA2
+  kafka-2-poc:
+    image: confluentinc/cp-kafka:7.8.0
+    container_name: kafka-2-poc
+    depends_on:
+      - zookeeper-poc
+    ports:
+      - "9093:9093"
+      - "19093:19093"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-poc:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2-poc:9093,PLAINTEXT_HOST://localhost:19093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+    healthcheck:
+      test: [ "CMD", "kafka-topics", "--list", "--bootstrap-server", "localhost:9093" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # SCHEMA REGISTRY
+  schema-registry-poc:
+    image: confluentinc/cp-schema-registry:7.8.0
+    container_name: schema-registry-poc
+    depends_on:
+      - kafka-1-poc
+      - kafka-2-poc
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-1-poc:9092,PLAINTEXT://kafka-2-poc:9093
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry-poc
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+
+  # REDPANDA CONSOLE
+  redpanda-console-poc:
+    image: docker.redpanda.com/vectorized/console:latest
+    container_name: redpanda-console-poc
+    environment:
+      KAFKA_BROKERS: kafka-1-poc:9092, kafka-2-poc:9093
+      SCHEMA_REGISTRY_URLS: http://schema-registry-poc:8081
+    ports:
+      - "8082:8080"
+    depends_on:
+      kafka-1-poc:
+        condition: service_healthy
+      kafka-2-poc:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/ready" ]
+      timeout: 5s
+      retries: 3
+
+  # MYSQL
+  mysql-poc:
+    image: mysql:8.0
+    container_name: mysql-poc
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: matera
+      MYSQL_USER: matera
+      MYSQL_PASSWORD: matera
+      MYSQL_ROOT_HOST: "%"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  mysql_data:
+    driver: local
